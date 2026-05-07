@@ -1,0 +1,9 @@
+{
+  "models": [
+    {
+      "name": "YOLO11n ONNX (CPU)",
+      "modelUrl": "${appDir}/models/YOLO11/yolo11n.onnx",
+      "engine": "ONNXRuntime"
+    }
+  ]
+}

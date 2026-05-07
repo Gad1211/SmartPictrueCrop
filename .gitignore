@@ -1,0 +1,10 @@
+.vscode/
+
+# Maven/Java build outputs
+target/
+dist/
+*.class
+
+# OS files
+.DS_Store
+Thumbs.db
