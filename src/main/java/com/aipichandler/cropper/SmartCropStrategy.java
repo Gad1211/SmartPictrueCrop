@@ -564,9 +564,14 @@ public class SmartCropStrategy {
             needW = needH * ratio;
         }
 
-        needW = Math.min(needW, imageWidth);
-
-        needH = Math.min(needH, imageHeight);
+        if (needW > imageWidth) {
+            needW = imageWidth;
+            needH = needW / ratio;
+        }
+        if (needH > imageHeight) {
+            needH = imageHeight;
+            needW = needH * ratio;
+        }
 
         double x = subject.centerX() - needW / 2.0;
 

@@ -47,7 +47,7 @@ public class MainApp {
     private final JTextField ratioUpperErrorField = new JTextField("", 5);
     private final JTextField ratioLowerErrorField = new JTextField("", 5);
     private final JLabel ratioErrorHintLabel = new JLabel();
-    private final JCheckBox centerSubjectCheckBox = new JCheckBox("是否启用主体居中", false);
+    private final JCheckBox customVisibleRatioCheckBox = new JCheckBox("启用自定义可见率阈值", false);
     private final JLabel minVisibleRatioLabel = new JLabel("主体可见率阈值:");
     private final JLabel minVisibleRatioHintLabel = new JLabel();
     private final JTextField minVisibleRatioField = new JTextField(
@@ -118,13 +118,26 @@ public class MainApp {
         JPanel ratioHintPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         ratioHintPanel.add(ratioErrorHintLabel);
         cropSection.add(ratioHintPanel);
+        JLabel ratioModeHintLabelA = new JLabel("模式说明：区间限制（跟随原图）会优先保持原图宽高比，仅在超出误差区间时收敛。");
+        Font ratioModeHintBaseFont = ratioModeHintLabelA.getFont();
+        ratioModeHintLabelA.setFont(ratioModeHintBaseFont.deriveFont(ratioModeHintBaseFont.getSize2D() - 1f));
+        ratioModeHintLabelA.setForeground(Color.DARK_GRAY);
+        JPanel ratioModeHintPanelA = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        ratioModeHintPanelA.add(ratioModeHintLabelA);
+        cropSection.add(ratioModeHintPanelA);
+        JLabel ratioModeHintLabelB = new JLabel("模式说明：严格基准（固定比例）会以基准比例为准，再按误差区间做边界限制。");
+        ratioModeHintLabelB.setFont(ratioModeHintBaseFont.deriveFont(ratioModeHintBaseFont.getSize2D() - 1f));
+        ratioModeHintLabelB.setForeground(Color.DARK_GRAY);
+        JPanel ratioModeHintPanelB = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        ratioModeHintPanelB.add(ratioModeHintLabelB);
+        cropSection.add(ratioModeHintPanelB);
         formPanel.add(cropSection);
 
         JPanel centeringSection = new JPanel(new GridLayout(0, 1, 0, 4));
         centeringSection.setBorder(BorderFactory.createTitledBorder("主体居中设置"));
         JPanel optionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        optionPanel.add(centerSubjectCheckBox);
-        centerSubjectCheckBox.addActionListener(e -> updateCenteringControlsState());
+        optionPanel.add(customVisibleRatioCheckBox);
+        customVisibleRatioCheckBox.addActionListener(e -> updateVisibleRatioControlsState());
         centeringSection.add(optionPanel);
         JPanel visibleRatioPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         visibleRatioPanel.add(minVisibleRatioLabel);
@@ -143,6 +156,35 @@ public class MainApp {
         centeringSection.add(hintPanel);
         formPanel.add(centeringSection);
 
+        JPanel outputLogicSection = new JPanel(new GridLayout(0, 1, 0, 4));
+        outputLogicSection.setBorder(BorderFactory.createTitledBorder("最终图片产出逻辑"));
+        JLabel outputLogicLabel1 = new JLabel("1) 先根据输出比例、比例模式、上下误差得到目标比例区间（裁切设置最高优先级）。");
+        JLabel outputLogicLabel2 = new JLabel("2) 基于检测主体进行智能裁切并贴合目标比例，主体设置不会突破该比例限制。");
+        JLabel outputLogicLabel3 = new JLabel("3) 勾选自定义可见率阈值后，按你输入值保留主体；未勾选时使用默认阈值。");
+        JLabel outputLogicLabel4 = new JLabel("4) 检测失败时自动回退到中心裁切，并继续遵守目标比例。");
+        Font outputHintBaseFont = outputLogicLabel1.getFont();
+        outputLogicLabel1.setFont(outputHintBaseFont.deriveFont(outputHintBaseFont.getSize2D() - 1f));
+        outputLogicLabel2.setFont(outputHintBaseFont.deriveFont(outputHintBaseFont.getSize2D() - 1f));
+        outputLogicLabel3.setFont(outputHintBaseFont.deriveFont(outputHintBaseFont.getSize2D() - 1f));
+        outputLogicLabel4.setFont(outputHintBaseFont.deriveFont(outputHintBaseFont.getSize2D() - 1f));
+        outputLogicLabel1.setForeground(Color.DARK_GRAY);
+        outputLogicLabel2.setForeground(Color.DARK_GRAY);
+        outputLogicLabel3.setForeground(Color.DARK_GRAY);
+        outputLogicLabel4.setForeground(Color.DARK_GRAY);
+        JPanel outputLogicPanel1 = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        outputLogicPanel1.add(outputLogicLabel1);
+        JPanel outputLogicPanel2 = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        outputLogicPanel2.add(outputLogicLabel2);
+        JPanel outputLogicPanel3 = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        outputLogicPanel3.add(outputLogicLabel3);
+        JPanel outputLogicPanel4 = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        outputLogicPanel4.add(outputLogicLabel4);
+        outputLogicSection.add(outputLogicPanel1);
+        outputLogicSection.add(outputLogicPanel2);
+        outputLogicSection.add(outputLogicPanel3);
+        outputLogicSection.add(outputLogicPanel4);
+        formPanel.add(outputLogicSection);
+
         logArea.setEditable(false);
         logArea.setLineWrap(true);
         logArea.setWrapStyleWord(true);
@@ -157,7 +199,7 @@ public class MainApp {
         frame.add(formPanel, BorderLayout.NORTH);
         frame.add(new JScrollPane(logArea), BorderLayout.CENTER);
         frame.add(actionPanel, BorderLayout.SOUTH);
-        updateCenteringControlsState();
+        updateVisibleRatioControlsState();
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
@@ -195,6 +237,7 @@ public class MainApp {
             appendLog("输出比例格式错误: " + ex.getMessage());
             return;
         }
+        boolean useCustomVisibleRatio = customVisibleRatioCheckBox.isSelected();
         try {
             upperError = parseOptionalNonNegativeNumber(ratioUpperErrorField.getText(), "上限误差");
             lowerError = parseOptionalNonNegativeNumber(ratioLowerErrorField.getText(), "下限误差");
@@ -202,14 +245,18 @@ public class MainApp {
                 throw new IllegalArgumentException("下限误差必须小于 1，否则会导致目标比例下界无效。");
             }
             ratioMode = resolveSelectedRatioMode();
-            minVisibleRatio = parseRatioInRange(
-                    minVisibleRatioField.getText(),
-                    "主体可见率阈值",
-                    0.0,
-                    1.0
-            );
+            if (useCustomVisibleRatio) {
+                minVisibleRatio = parseRatioInRange(
+                        minVisibleRatioField.getText(),
+                        "主体可见率阈值",
+                        0.0,
+                        1.0
+                );
+            } else {
+                minVisibleRatio = ProcessingConfig.DEFAULT_MIN_SUBJECT_VISIBLE_RATIO;
+            }
         } catch (IllegalArgumentException ex) {
-            appendLog("误差值输入错误: " + ex.getMessage());
+            appendLog("参数输入错误: " + ex.getMessage());
             return;
         }
         final ModelConfigLoader.ModelOption selectedModel = (ModelConfigLoader.ModelOption) modelCombo.getSelectedItem();
@@ -246,7 +293,7 @@ public class MainApp {
                         selectedModel.engine(),
                         ProcessingConfig.DEFAULT_SUBJECT_PROMPT,
                         ratioMode,
-                        centerSubjectCheckBox.isSelected(),
+                        true,
                         minVisibleRatio
                 );
                 Consumer<String> logger = new Consumer<String>() {
@@ -267,8 +314,9 @@ public class MainApp {
                     appendLog("比例模式: " + (config.aspectRatioMode() == ProcessingConfig.AspectRatioMode.STRICT_BASE_RATIO
                             ? "严格基准（固定比例）"
                             : "区间限制（跟随原图）"));
-                    appendLog("主体居中选项: " + (config.enableSubjectCentering() ? "已启用" : "未启用"));
-                    appendLog(String.format(Locale.ROOT, "主体可见率阈值: %.3f", config.minSubjectVisibleRatio()));
+                    appendLog("主体居中策略: 默认启用");
+                    appendLog("自定义可见率阈值: " + (useCustomVisibleRatio ? "已启用" : "未启用(使用默认值)"));
+                    appendLog(String.format(Locale.ROOT, "生效主体可见率阈值: %.3f", config.minSubjectVisibleRatio()));
                     ImageBatchProcessor processor = new ImageBatchProcessor(config, logger, stopRequested::get);
                     processor.processFolder(Paths.get(folder));
                     if (stopRequested.get()) {
@@ -419,8 +467,8 @@ public class MainApp {
         return ProcessingConfig.AspectRatioMode.CLAMP_SOURCE_RATIO;
     }
 
-    private void updateCenteringControlsState() {
-        boolean enabled = centerSubjectCheckBox.isSelected();
+    private void updateVisibleRatioControlsState() {
+        boolean enabled = customVisibleRatioCheckBox.isSelected();
         minVisibleRatioField.setEnabled(enabled);
         minVisibleRatioLabel.setEnabled(enabled);
         minVisibleRatioHintLabel.setEnabled(enabled);
