@@ -107,14 +107,21 @@ public class ImageBatchProcessor {
         double lowerFactor = config.aspectRatioLowerFactor();
         double minRatio = base * Math.min(upperFactor, lowerFactor);
         double maxRatio = base * Math.max(upperFactor, lowerFactor);
+        if (config.aspectRatioMode() == ProcessingConfig.AspectRatioMode.STRICT_BASE_RATIO) {
+            return clampRatio(base, minRatio, maxRatio);
+        }
         double sourceRatio = image.getWidth() / (double) image.getHeight();
-        if (sourceRatio < minRatio) {
+        return clampRatio(sourceRatio, minRatio, maxRatio);
+    }
+
+    private double clampRatio(double ratio, double minRatio, double maxRatio) {
+        if (ratio < minRatio) {
             return minRatio;
         }
-        if (sourceRatio > maxRatio) {
+        if (ratio > maxRatio) {
             return maxRatio;
         }
-        return sourceRatio;
+        return ratio;
     }
 
     private boolean isSupportedImage(Path path) {

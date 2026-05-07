@@ -2,12 +2,18 @@ package com.aipichandler.core;
 
 public class ProcessingConfig {
 
+    public enum AspectRatioMode {
+        CLAMP_SOURCE_RATIO,
+        STRICT_BASE_RATIO
+    }
+
     public static final String DEFAULT_SUBJECT_PROMPT = "";
     public static final double DEFAULT_OUTPUT_ASPECT_RATIO = 1.0;
     public static final double DEFAULT_ASPECT_RATIO_UPPER_FACTOR = 1.0;
     public static final double DEFAULT_ASPECT_RATIO_LOWER_FACTOR = 1.0;
     public static final boolean DEFAULT_ENABLE_SUBJECT_CENTERING = false;
     public static final double DEFAULT_MIN_SUBJECT_VISIBLE_RATIO = 0.92;
+    public static final AspectRatioMode DEFAULT_ASPECT_RATIO_MODE = AspectRatioMode.CLAMP_SOURCE_RATIO;
 
     private final double ratioTolerance;
     private final double outputAspectRatio;
@@ -19,6 +25,7 @@ public class ProcessingConfig {
     private final String modelUrl;
     private final String modelEngine;
     private final String subjectPrompt;
+    private final AspectRatioMode aspectRatioMode;
     private final boolean enableSubjectCentering;
     private final double minSubjectVisibleRatio;
 
@@ -42,6 +49,7 @@ public class ProcessingConfig {
                 modelUrl,
                 modelEngine,
                 subjectPrompt,
+                DEFAULT_ASPECT_RATIO_MODE,
                 DEFAULT_ENABLE_SUBJECT_CENTERING,
                 DEFAULT_MIN_SUBJECT_VISIBLE_RATIO
         );
@@ -70,6 +78,7 @@ public class ProcessingConfig {
                 modelUrl,
                 modelEngine,
                 subjectPrompt,
+                DEFAULT_ASPECT_RATIO_MODE,
                 DEFAULT_ENABLE_SUBJECT_CENTERING,
                 DEFAULT_MIN_SUBJECT_VISIBLE_RATIO
         );
@@ -99,6 +108,7 @@ public class ProcessingConfig {
                 modelUrl,
                 modelEngine,
                 subjectPrompt,
+                DEFAULT_ASPECT_RATIO_MODE,
                 enableSubjectCentering,
                 DEFAULT_MIN_SUBJECT_VISIBLE_RATIO
         );
@@ -115,6 +125,7 @@ public class ProcessingConfig {
             String modelUrl,
             String modelEngine,
             String subjectPrompt,
+            AspectRatioMode aspectRatioMode,
             boolean enableSubjectCentering,
             double minSubjectVisibleRatio
     ) {
@@ -142,6 +153,9 @@ public class ProcessingConfig {
         if (modelEngine == null || modelEngine.trim().isEmpty()) {
             throw new IllegalArgumentException("modelEngine cannot be blank.");
         }
+        if (aspectRatioMode == null) {
+            throw new IllegalArgumentException("aspectRatioMode cannot be null.");
+        }
         if (minSubjectVisibleRatio <= 0 || minSubjectVisibleRatio > 1) {
             throw new IllegalArgumentException("minSubjectVisibleRatio must be in (0, 1].");
         }
@@ -155,8 +169,40 @@ public class ProcessingConfig {
         this.modelUrl = modelUrl.trim();
         this.modelEngine = modelEngine.trim();
         this.subjectPrompt = subjectPrompt == null ? DEFAULT_SUBJECT_PROMPT : subjectPrompt.trim();
+        this.aspectRatioMode = aspectRatioMode;
         this.enableSubjectCentering = enableSubjectCentering;
         this.minSubjectVisibleRatio = minSubjectVisibleRatio;
+    }
+
+    public ProcessingConfig(
+            double ratioTolerance,
+            double outputAspectRatio,
+            double aspectRatioUpperFactor,
+            double aspectRatioLowerFactor,
+            String outputFolderName,
+            float jpegQuality,
+            String modelName,
+            String modelUrl,
+            String modelEngine,
+            String subjectPrompt,
+            boolean enableSubjectCentering,
+            double minSubjectVisibleRatio
+    ) {
+        this(
+                ratioTolerance,
+                outputAspectRatio,
+                aspectRatioUpperFactor,
+                aspectRatioLowerFactor,
+                outputFolderName,
+                jpegQuality,
+                modelName,
+                modelUrl,
+                modelEngine,
+                subjectPrompt,
+                DEFAULT_ASPECT_RATIO_MODE,
+                enableSubjectCentering,
+                minSubjectVisibleRatio
+        );
     }
 
     public double ratioTolerance() {
@@ -197,6 +243,10 @@ public class ProcessingConfig {
 
     public String subjectPrompt() {
         return subjectPrompt;
+    }
+
+    public AspectRatioMode aspectRatioMode() {
+        return aspectRatioMode;
     }
 
     public boolean enableSubjectCentering() {

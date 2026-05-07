@@ -43,8 +43,10 @@ public class MainApp {
     private final JTextField folderField = new JTextField(48);
     private final JComboBox<String> ratioCombo = new JComboBox<>(new String[]{"1:1", "4:3", "16:9", "9:16", "自定义"});
     private final JTextField customRatioField = new JTextField("1:1", 6);
+    private final JComboBox<String> ratioModeCombo = new JComboBox<>(new String[]{"区间限制（跟随原图）", "严格基准（固定比例）"});
     private final JTextField ratioUpperErrorField = new JTextField("", 5);
     private final JTextField ratioLowerErrorField = new JTextField("", 5);
+    private final JLabel ratioErrorHintLabel = new JLabel();
     private final JCheckBox centerSubjectCheckBox = new JCheckBox("是否启用主体居中", false);
     private final JLabel minVisibleRatioLabel = new JLabel("主体可见率阈值:");
     private final JLabel minVisibleRatioHintLabel = new JLabel();
@@ -101,11 +103,21 @@ public class MainApp {
         cropPanel.add(ratioCombo);
         customRatioField.setEnabled(false);
         cropPanel.add(customRatioField);
+        cropPanel.add(new JLabel("比例模式:"));
+        ratioModeCombo.setSelectedIndex(0);
+        cropPanel.add(ratioModeCombo);
         cropPanel.add(new JLabel("上限误差:"));
         cropPanel.add(ratioUpperErrorField);
         cropPanel.add(new JLabel("下限误差:"));
         cropPanel.add(ratioLowerErrorField);
         cropSection.add(cropPanel);
+        ratioErrorHintLabel.setText("说明：最终比例范围 = 基准比例 x [1-下限误差, 1+上限误差]；空值按 0 处理。");
+        Font ratioHintBaseFont = ratioErrorHintLabel.getFont();
+        ratioErrorHintLabel.setFont(ratioHintBaseFont.deriveFont(ratioHintBaseFont.getSize2D() - 1f));
+        ratioErrorHintLabel.setForeground(Color.DARK_GRAY);
+        JPanel ratioHintPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        ratioHintPanel.add(ratioErrorHintLabel);
+        cropSection.add(ratioHintPanel);
         formPanel.add(cropSection);
 
         JPanel centeringSection = new JPanel(new GridLayout(0, 1, 0, 4));
@@ -176,6 +188,7 @@ public class MainApp {
         final double upperError;
         final double lowerError;
         final double minVisibleRatio;
+        final ProcessingConfig.AspectRatioMode ratioMode;
         try {
             baseRatio = parseRatioText(ratioText);
         } catch (IllegalArgumentException ex) {
@@ -188,6 +201,7 @@ public class MainApp {
             if (lowerError >= 1.0) {
                 throw new IllegalArgumentException("下限误差必须小于 1，否则会导致目标比例下界无效。");
             }
+            ratioMode = resolveSelectedRatioMode();
             minVisibleRatio = parseRatioInRange(
                     minVisibleRatioField.getText(),
                     "主体可见率阈值",
@@ -231,6 +245,7 @@ public class MainApp {
                         selectedModel.modelUrl(),
                         selectedModel.engine(),
                         ProcessingConfig.DEFAULT_SUBJECT_PROMPT,
+                        ratioMode,
                         centerSubjectCheckBox.isSelected(),
                         minVisibleRatio
                 );
@@ -249,6 +264,9 @@ public class MainApp {
                             config.outputAspectRatio(),
                             upperError,
                             lowerError));
+                    appendLog("比例模式: " + (config.aspectRatioMode() == ProcessingConfig.AspectRatioMode.STRICT_BASE_RATIO
+                            ? "严格基准（固定比例）"
+                            : "区间限制（跟随原图）"));
                     appendLog("主体居中选项: " + (config.enableSubjectCentering() ? "已启用" : "未启用"));
                     appendLog(String.format(Locale.ROOT, "主体可见率阈值: %.3f", config.minSubjectVisibleRatio()));
                     ImageBatchProcessor processor = new ImageBatchProcessor(config, logger, stopRequested::get);
@@ -390,6 +408,15 @@ public class MainApp {
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException(fieldName + "不是有效数字。");
         }
+    }
+
+    private ProcessingConfig.AspectRatioMode resolveSelectedRatioMode() {
+        Object selected = ratioModeCombo.getSelectedItem();
+        String mode = selected == null ? "" : selected.toString();
+        if (mode.startsWith("严格基准")) {
+            return ProcessingConfig.AspectRatioMode.STRICT_BASE_RATIO;
+        }
+        return ProcessingConfig.AspectRatioMode.CLAMP_SOURCE_RATIO;
     }
 
     private void updateCenteringControlsState() {

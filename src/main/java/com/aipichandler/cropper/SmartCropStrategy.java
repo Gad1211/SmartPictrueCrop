@@ -150,6 +150,15 @@ public class SmartCropStrategy {
             );
         }
 
+        // Keep aspect ratio constraints as the highest-priority rule.
+        finalCrop = enforceAspectRatioPriority(
+                finalCrop,
+                subjectBox,
+                targetRatio,
+                source.getWidth(),
+                source.getHeight()
+        );
+
         if (saliencyProvider != null) {
             saliencyProvider.inferSalientRegions(source);
         }
@@ -160,6 +169,25 @@ public class SmartCropStrategy {
                 subjectBox,
                 "detected_smart_crop",
                 detections
+        );
+    }
+
+    private BoundingBox enforceAspectRatioPriority(
+            BoundingBox crop,
+            BoundingBox subjectBox,
+            double targetRatio,
+            int imageWidth,
+            int imageHeight
+    ) {
+        double currentRatio = crop.width() / crop.height();
+        if (Math.abs(currentRatio - targetRatio) <= 1e-6) {
+            return crop;
+        }
+        return adaptToAspectRatio(
+                subjectBox,
+                targetRatio,
+                imageWidth,
+                imageHeight
         );
     }
 
