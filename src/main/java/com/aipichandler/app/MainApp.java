@@ -43,7 +43,7 @@ public class MainApp {
     private final JTextField folderField = new JTextField(48);
     private final JComboBox<String> ratioCombo = new JComboBox<>(new String[]{"1:1", "4:3", "16:9", "9:16", "自定义"});
     private final JTextField customRatioField = new JTextField("1:1", 6);
-    private final JComboBox<String> ratioModeCombo = new JComboBox<>(new String[]{"区间限制（跟随原图）", "严格基准（固定比例）"});
+    private final JComboBox<String> ratioModeCombo = new JComboBox<>(new String[]{"严格基准（固定比例）", "区间限制（跟随原图）"});
     private final JTextField ratioUpperErrorField = new JTextField("", 5);
     private final JTextField ratioLowerErrorField = new JTextField("", 5);
     private final JLabel ratioErrorHintLabel = new JLabel();
@@ -64,7 +64,7 @@ public class MainApp {
     private Thread workerThread;
 
     private void createAndShow() {
-        frame = new JFrame("AI 图片处理器");
+        frame = new JFrame("图片主体裁切处理器(适用于识别图片主体按比例裁切)");
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout(8, 8));
 

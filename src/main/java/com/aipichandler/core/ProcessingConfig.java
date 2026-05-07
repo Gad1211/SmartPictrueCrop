@@ -13,7 +13,7 @@ public class ProcessingConfig {
     public static final double DEFAULT_ASPECT_RATIO_LOWER_FACTOR = 1.0;
     public static final boolean DEFAULT_ENABLE_SUBJECT_CENTERING = false;
     public static final double DEFAULT_MIN_SUBJECT_VISIBLE_RATIO = 0.92;
-    public static final AspectRatioMode DEFAULT_ASPECT_RATIO_MODE = AspectRatioMode.CLAMP_SOURCE_RATIO;
+    public static final AspectRatioMode DEFAULT_ASPECT_RATIO_MODE = AspectRatioMode.STRICT_BASE_RATIO;
 
     private final double ratioTolerance;
     private final double outputAspectRatio;
