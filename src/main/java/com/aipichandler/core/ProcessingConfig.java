@@ -13,6 +13,7 @@ public class ProcessingConfig {
     public static final double DEFAULT_ASPECT_RATIO_LOWER_FACTOR = 1.0;
     public static final boolean DEFAULT_ENABLE_SUBJECT_CENTERING = false;
     public static final double DEFAULT_MIN_SUBJECT_VISIBLE_RATIO = 0.92;
+    public static final boolean DEFAULT_KEEP_SOURCE_WIDTH_FOR_SQUARE = false;
     public static final AspectRatioMode DEFAULT_ASPECT_RATIO_MODE = AspectRatioMode.STRICT_BASE_RATIO;
 
     private final double ratioTolerance;
@@ -28,6 +29,7 @@ public class ProcessingConfig {
     private final AspectRatioMode aspectRatioMode;
     private final boolean enableSubjectCentering;
     private final double minSubjectVisibleRatio;
+    private final boolean keepSourceWidthForSquare;
 
     public ProcessingConfig(
             double ratioTolerance,
@@ -51,7 +53,8 @@ public class ProcessingConfig {
                 subjectPrompt,
                 DEFAULT_ASPECT_RATIO_MODE,
                 DEFAULT_ENABLE_SUBJECT_CENTERING,
-                DEFAULT_MIN_SUBJECT_VISIBLE_RATIO
+                DEFAULT_MIN_SUBJECT_VISIBLE_RATIO,
+                DEFAULT_KEEP_SOURCE_WIDTH_FOR_SQUARE
         );
     }
 
@@ -80,7 +83,8 @@ public class ProcessingConfig {
                 subjectPrompt,
                 DEFAULT_ASPECT_RATIO_MODE,
                 DEFAULT_ENABLE_SUBJECT_CENTERING,
-                DEFAULT_MIN_SUBJECT_VISIBLE_RATIO
+                DEFAULT_MIN_SUBJECT_VISIBLE_RATIO,
+                DEFAULT_KEEP_SOURCE_WIDTH_FOR_SQUARE
         );
     }
 
@@ -110,7 +114,8 @@ public class ProcessingConfig {
                 subjectPrompt,
                 DEFAULT_ASPECT_RATIO_MODE,
                 enableSubjectCentering,
-                DEFAULT_MIN_SUBJECT_VISIBLE_RATIO
+                DEFAULT_MIN_SUBJECT_VISIBLE_RATIO,
+                DEFAULT_KEEP_SOURCE_WIDTH_FOR_SQUARE
         );
     }
 
@@ -128,6 +133,40 @@ public class ProcessingConfig {
             AspectRatioMode aspectRatioMode,
             boolean enableSubjectCentering,
             double minSubjectVisibleRatio
+    ) {
+        this(
+                ratioTolerance,
+                outputAspectRatio,
+                aspectRatioUpperFactor,
+                aspectRatioLowerFactor,
+                outputFolderName,
+                jpegQuality,
+                modelName,
+                modelUrl,
+                modelEngine,
+                subjectPrompt,
+                aspectRatioMode,
+                enableSubjectCentering,
+                minSubjectVisibleRatio,
+                DEFAULT_KEEP_SOURCE_WIDTH_FOR_SQUARE
+        );
+    }
+
+    public ProcessingConfig(
+            double ratioTolerance,
+            double outputAspectRatio,
+            double aspectRatioUpperFactor,
+            double aspectRatioLowerFactor,
+            String outputFolderName,
+            float jpegQuality,
+            String modelName,
+            String modelUrl,
+            String modelEngine,
+            String subjectPrompt,
+            AspectRatioMode aspectRatioMode,
+            boolean enableSubjectCentering,
+            double minSubjectVisibleRatio,
+            boolean keepSourceWidthForSquare
     ) {
         if (ratioTolerance < 0 || ratioTolerance >= 1) {
             throw new IllegalArgumentException("ratioTolerance must be in [0, 1).");
@@ -172,6 +211,7 @@ public class ProcessingConfig {
         this.aspectRatioMode = aspectRatioMode;
         this.enableSubjectCentering = enableSubjectCentering;
         this.minSubjectVisibleRatio = minSubjectVisibleRatio;
+        this.keepSourceWidthForSquare = keepSourceWidthForSquare;
     }
 
     public ProcessingConfig(
@@ -201,7 +241,8 @@ public class ProcessingConfig {
                 subjectPrompt,
                 DEFAULT_ASPECT_RATIO_MODE,
                 enableSubjectCentering,
-                minSubjectVisibleRatio
+                minSubjectVisibleRatio,
+                DEFAULT_KEEP_SOURCE_WIDTH_FOR_SQUARE
         );
     }
 
@@ -255,5 +296,9 @@ public class ProcessingConfig {
 
     public double minSubjectVisibleRatio() {
         return minSubjectVisibleRatio;
+    }
+
+    public boolean keepSourceWidthForSquare() {
+        return keepSourceWidthForSquare;
     }
 }

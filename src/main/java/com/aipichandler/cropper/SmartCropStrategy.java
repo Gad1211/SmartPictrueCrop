@@ -32,9 +32,10 @@ public class SmartCropStrategy {
     private final SaliencyProvider saliencyProvider;
     private final boolean enableSubjectCentering;
     private final double minSubjectVisibleRatio;
+    private final boolean keepSourceWidthForSquare;
 
     public SmartCropStrategy(SmartCropConfig config, SaliencyProvider saliencyProvider) {
-        this(config, saliencyProvider, false, DEFAULT_MIN_SUBJECT_VISIBLE_RATIO);
+        this(config, saliencyProvider, false, DEFAULT_MIN_SUBJECT_VISIBLE_RATIO, false);
     }
 
     public SmartCropStrategy(
@@ -42,7 +43,7 @@ public class SmartCropStrategy {
             SaliencyProvider saliencyProvider,
             boolean enableSubjectCentering
     ) {
-        this(config, saliencyProvider, enableSubjectCentering, DEFAULT_MIN_SUBJECT_VISIBLE_RATIO);
+        this(config, saliencyProvider, enableSubjectCentering, DEFAULT_MIN_SUBJECT_VISIBLE_RATIO, false);
     }
 
     public SmartCropStrategy(
@@ -51,10 +52,21 @@ public class SmartCropStrategy {
             boolean enableSubjectCentering,
             double minSubjectVisibleRatio
     ) {
+        this(config, saliencyProvider, enableSubjectCentering, minSubjectVisibleRatio, false);
+    }
+
+    public SmartCropStrategy(
+            SmartCropConfig config,
+            SaliencyProvider saliencyProvider,
+            boolean enableSubjectCentering,
+            double minSubjectVisibleRatio,
+            boolean keepSourceWidthForSquare
+    ) {
         this.config = config;
         this.saliencyProvider = saliencyProvider;
         this.enableSubjectCentering = enableSubjectCentering;
         this.minSubjectVisibleRatio = minSubjectVisibleRatio;
+        this.keepSourceWidthForSquare = keepSourceWidthForSquare;
     }
 
     public CropResult crop(
@@ -74,10 +86,17 @@ public class SmartCropStrategy {
         double targetRatio = ratio > 0
                 ? ratio
                 : CropAspectRatio.RATIO_1_1.value();
+        boolean keepWidthForSquare = shouldKeepSourceWidthForSquare(
+                targetRatio,
+                source.getWidth(),
+                source.getHeight()
+        );
 
         if (detections == null || detections.isEmpty()) {
 
-            BoundingBox fallback = centerCrop(
+            BoundingBox fallback = keepWidthForSquare
+                    ? centerCropKeepWidthForSquare(source.getWidth(), source.getHeight())
+                    : centerCrop(
                     source.getWidth(),
                     source.getHeight(),
                     targetRatio
@@ -98,7 +117,9 @@ public class SmartCropStrategy {
 
         if (subjectBox == null) {
 
-            BoundingBox fallback = centerCrop(
+            BoundingBox fallback = keepWidthForSquare
+                    ? centerCropKeepWidthForSquare(source.getWidth(), source.getHeight())
+                    : centerCrop(
                     source.getWidth(),
                     source.getHeight(),
                     targetRatio
@@ -132,7 +153,9 @@ public class SmartCropStrategy {
                 )
                 .clamp(source.getWidth(), source.getHeight());
 
-        BoundingBox finalCrop = adaptToAspectRatio(
+        BoundingBox finalCrop = keepWidthForSquare
+                ? adaptToSquareKeepWidth(expanded, source.getWidth(), source.getHeight())
+                : adaptToAspectRatio(
                 expanded,
                 targetRatio,
                 source.getWidth(),
@@ -156,7 +179,8 @@ public class SmartCropStrategy {
                 subjectBox,
                 targetRatio,
                 source.getWidth(),
-                source.getHeight()
+                source.getHeight(),
+                keepWidthForSquare
         );
 
         if (saliencyProvider != null) {
@@ -177,11 +201,15 @@ public class SmartCropStrategy {
             BoundingBox subjectBox,
             double targetRatio,
             int imageWidth,
-            int imageHeight
+            int imageHeight,
+            boolean keepWidthForSquare
     ) {
         double currentRatio = crop.width() / crop.height();
         if (Math.abs(currentRatio - targetRatio) <= 1e-6) {
             return crop;
+        }
+        if (keepWidthForSquare) {
+            return adaptToSquareKeepWidth(subjectBox, imageWidth, imageHeight);
         }
         return adaptToAspectRatio(
                 subjectBox,
@@ -189,6 +217,31 @@ public class SmartCropStrategy {
                 imageWidth,
                 imageHeight
         );
+    }
+
+    private boolean shouldKeepSourceWidthForSquare(double ratio, int imageWidth, int imageHeight) {
+        return keepSourceWidthForSquare
+                && Math.abs(ratio - CropAspectRatio.RATIO_1_1.value()) <= 1e-6
+                && imageHeight >= imageWidth;
+    }
+
+    private BoundingBox centerCropKeepWidthForSquare(int imageWidth, int imageHeight) {
+        double cropW = imageWidth;
+        double cropH = imageWidth;
+        double y = (imageHeight - cropH) / 2.0;
+        return new BoundingBox(0, y, cropW, cropH).clamp(imageWidth, imageHeight);
+    }
+
+    private BoundingBox adaptToSquareKeepWidth(
+            BoundingBox subject,
+            int imageWidth,
+            int imageHeight
+    ) {
+        double cropW = imageWidth;
+        double cropH = imageWidth;
+        double y = subject.centerY() - cropH / 2.0;
+        y = Math.max(0, Math.min(y, imageHeight - cropH));
+        return new BoundingBox(0, y, cropW, cropH).clamp(imageWidth, imageHeight);
     }
 
     private CropResult buildResult(

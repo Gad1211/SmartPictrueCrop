@@ -26,7 +26,8 @@ public class AiSubjectCropper implements AutoCloseable {
                 SmartCropConfig.defaultConfig(),
                 null,
                 config.enableSubjectCentering(),
-                config.minSubjectVisibleRatio()
+                config.minSubjectVisibleRatio(),
+                config.keepSourceWidthForSquare()
         );
         loadDetector(config);
     }

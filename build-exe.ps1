@@ -28,7 +28,7 @@ if (Test-Path $modelConfigSource) {
     Copy-Item $modelConfigSource (Join-Path $targetPath "modelConfig.json") -Force
     Write-Host "Included modelConfig.json into package input."
 } else {
-    Write-Warning "modelConfig.json not found in project root, installer will fallback to bundled default config."
+    Write-Warning "modelConfig.json not found in project root, app will fallback to bundled default config."
 }
 
 $defaultModelSource = Join-Path $PSScriptRoot "models\YOLO11"
@@ -41,7 +41,7 @@ if (Test-Path $defaultModelSource) {
     Copy-Item $defaultModelSource $defaultModelTarget -Recurse -Force
     Write-Host "Included default YOLO11 model folder into package input."
 } else {
-    Write-Warning "Default model folder models\YOLO11 not found; installer will not contain bundled YOLO11 files."
+    Write-Warning "Default model folder models\YOLO11 not found; portable package will not contain bundled YOLO11 files."
 }
 
 $distPath = Join-Path $PSScriptRoot "dist"
@@ -51,20 +51,26 @@ if (Test-Path $distPath) {
 New-Item -Path $distPath -ItemType Directory | Out-Null
 
 jpackage `
-  --type exe `
+  --type app-image `
   --name "PicCrop" `
   --input $targetPath `
   --main-jar $jarName `
   --main-class com.aipichandler.app.MainApp `
   --dest $distPath `
-  --vendor "PicCrop" `
-  --win-shortcut `
-  --win-menu `
-  --win-dir-chooser
+  --vendor "PicCrop"
 
-$exeFiles = Get-ChildItem -Path $distPath -Filter "*.exe" -ErrorAction SilentlyContinue
-if (-not $exeFiles) {
-    throw "No exe generated. Install WiX 3.x and ensure light.exe/candle.exe are in PATH."
+$appImagePath = Join-Path $distPath "PicCrop"
+$launcherPath = Join-Path $appImagePath "PicCrop.exe"
+if (-not (Test-Path $launcherPath)) {
+    throw "Portable launcher not generated: $launcherPath"
 }
 
-Write-Host "Build completed: $($exeFiles[0].FullName)"
+$portableZipPath = Join-Path $distPath "PicCrop-portable.zip"
+if (Test-Path $portableZipPath) {
+    Remove-Item $portableZipPath -Force
+}
+
+Compress-Archive -Path $appImagePath -DestinationPath $portableZipPath -CompressionLevel Optimal
+
+Write-Host "Portable folder: $appImagePath"
+Write-Host "Portable zip: $portableZipPath"

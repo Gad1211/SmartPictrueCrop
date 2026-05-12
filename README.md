@@ -53,7 +53,9 @@ mvn exec:java -Dexec.mainClass="com.aipichandler.app.MainApp"
 - `16:9`
 - `9:16`
 
-## 打包 EXE（Windows）
+## 打包绿色版 EXE（Windows，免安装）
+
+该方式基于 `jpackage --type app-image`，无需 WiX。
 
 ```powershell
 .\build-exe.ps1
@@ -65,9 +67,12 @@ mvn exec:java -Dexec.mainClass="com.aipichandler.app.MainApp"
 .\build-exe.ps1 -JdkHome "D:\JetBrains\JDK21"
 ```
 
-输出目录：`dist\AIPicHandler-*.exe`
+输出目录：
 
-打包脚本会自动尝试将以下内容一起打包到 EXE 安装包：
+- `dist\PicCrop\`（绿色版目录，含 `PicCrop.exe`）
+- `dist\PicCrop-portable.zip`（可直接发给别人，解压即用）
+
+打包脚本会自动尝试将以下内容一起打包到绿色版目录：
 
 - `modelConfig.json`
 - `models\YOLO11\`（默认 YOLO11 模型目录）

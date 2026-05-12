@@ -46,6 +46,7 @@ public class MainApp {
     private final JComboBox<String> ratioModeCombo = new JComboBox<>(new String[]{"严格基准（固定比例）", "区间限制（跟随原图）"});
     private final JTextField ratioUpperErrorField = new JTextField("", 5);
     private final JTextField ratioLowerErrorField = new JTextField("", 5);
+    private final JCheckBox keepSourceWidthForSquareCheckBox = new JCheckBox("1:1裁切保持原图宽度（仅调整高度,只对竖图生效）", false);
     private final JLabel ratioErrorHintLabel = new JLabel();
     private final JCheckBox customVisibleRatioCheckBox = new JCheckBox("启用自定义可见率阈值", false);
     private final JLabel minVisibleRatioLabel = new JLabel("主体可见率阈值:");
@@ -111,6 +112,9 @@ public class MainApp {
         cropPanel.add(new JLabel("下限误差:"));
         cropPanel.add(ratioLowerErrorField);
         cropSection.add(cropPanel);
+        JPanel keepWidthPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        keepWidthPanel.add(keepSourceWidthForSquareCheckBox);
+        cropSection.add(keepWidthPanel);
         ratioErrorHintLabel.setText("说明：最终比例范围 = 基准比例 x [1-下限误差, 1+上限误差]；空值按 0 处理。");
         Font ratioHintBaseFont = ratioErrorHintLabel.getFont();
         ratioErrorHintLabel.setFont(ratioHintBaseFont.deriveFont(ratioHintBaseFont.getSize2D() - 1f));
@@ -294,7 +298,8 @@ public class MainApp {
                         ProcessingConfig.DEFAULT_SUBJECT_PROMPT,
                         ratioMode,
                         true,
-                        minVisibleRatio
+                        minVisibleRatio,
+                        keepSourceWidthForSquareCheckBox.isSelected()
                 );
                 Consumer<String> logger = new Consumer<String>() {
                     @Override
@@ -314,6 +319,7 @@ public class MainApp {
                     appendLog("比例模式: " + (config.aspectRatioMode() == ProcessingConfig.AspectRatioMode.STRICT_BASE_RATIO
                             ? "严格基准（固定比例）"
                             : "区间限制（跟随原图）"));
+                    appendLog("1:1保持原图宽度: " + (config.keepSourceWidthForSquare() ? "已启用" : "未启用"));
                     appendLog("主体居中策略: 默认启用");
                     appendLog("自定义可见率阈值: " + (useCustomVisibleRatio ? "已启用" : "未启用(使用默认值)"));
                     appendLog(String.format(Locale.ROOT, "生效主体可见率阈值: %.3f", config.minSubjectVisibleRatio()));
