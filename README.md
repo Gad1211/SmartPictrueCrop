@@ -192,9 +192,7 @@ curl -sS -X POST "http://localhost:8080/api/crop/smart?ratio=1:1" \
 
 ### 与 YOLO11 / Ultralytics 的关系（重要）
 
-Ultralytics 的 YOLO11 **训练代码、官方权重与导出模型**通常适用其 [**AGPL-3.0**](https://www.gnu.org/licenses/agpl-3.0.html)（或另行购买的企业许可），这与「把本项目标成 Apache-2.0」**并不矛盾**：Apache-2.0 描述的是**你写的这份程序**；**ONNX 等模型文件**若来自 Ultralytics 且受其条款约束，你仍需**单独遵守**其对模型分发与使用的要求（常见路径包括：按 AGPL 提供对应源码/网络服务条款、购买企业许可，或改用其他许可证下的检测模型）。
-
-因此并不是「只能用 GPL」这一种说法：AGPL 与 GPL 相关但不同（AGPL 对通过网络提供服务的场景更严格）。**是否可将整体闭源商用打包**，取决于你如何获取与许可模型及 Ultralytics 条款；请以 [Ultralytics 官方许可说明](https://www.ultralytics.com/license) 为准，必要时咨询专业律师。
+Ultralytics 的 YOLO11 **训练代码、官方权重与导出模型**通常适用其 [**AGPL-3.0**](https://www.gnu.org/licenses/agpl-3.0.html)（或另行购买的企业许可）。
 
 ### 其他依赖
 
