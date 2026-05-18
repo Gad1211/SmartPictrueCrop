@@ -28,6 +28,25 @@ public class SmartCropStrategy {
      */
     private static final double PERSON_VISUAL_CENTER_Y_RATIO = 0.35;
 
+    /**
+     * 人物头顶安全余量（相对 crop 高度）：
+     * 裁切框顶部应位于「主体顶部 − cropH × 该比例」之上，给头顶/发顶留呼吸空间，
+     * 避免 1:1 等紧凑比例下因 expanded 顶部被图像边界 clamp 而切掉头顶。
+     */
+    private static final double PERSON_TOP_HEADROOM_RATIO = 0.04;
+
+    /**
+     * 人像头部安全余量（占 subjectBox 高度的比例）。
+     * YOLO 检出的 person bbox 经常会把发顶/头顶截掉几像素，
+     * 因此 crop 顶边需要比 subjectBox.y 再往上预留一点。
+     */
+    private static final double PERSON_HEAD_SAFETY_MARGIN_RATIO = 0.05;
+
+    /**
+     * 头部安全余量相对于 crop 高度的上限，避免极端瘦高人像把 crop 整体顶到画面外。
+     */
+    private static final double PERSON_HEAD_SAFETY_MARGIN_MAX_OF_CROP = 0.10;
+
     private final SmartCropConfig config;
     private final SaliencyProvider saliencyProvider;
     private final boolean enableSubjectCentering;
@@ -162,16 +181,28 @@ public class SmartCropStrategy {
                 source.getHeight()
         );
 
+        boolean isPersonSubject = mainSubject != null && mainSubject.isPerson();
+
         if (enableSubjectCentering) {
 
             finalCrop = adjustForSubjectCentering(
                     finalCrop,
                     subjectBox,
-                    mainSubject != null && mainSubject.isPerson(),
+                    isPersonSubject,
                     source.getWidth(),
                     source.getHeight()
             );
         }
+
+        // Hard guard: for person subjects, never let the crop cut off the top of the head.
+        // Only shifts vertically, preserves crop width/height (and thus aspect ratio).
+        finalCrop = protectHeadForPerson(
+                finalCrop,
+                subjectBox,
+                isPersonSubject,
+                source.getWidth(),
+                source.getHeight()
+        );
 
         // Keep aspect ratio constraints as the highest-priority rule.
         finalCrop = enforceAspectRatioPriority(
@@ -181,6 +212,16 @@ public class SmartCropStrategy {
                 source.getWidth(),
                 source.getHeight(),
                 keepWidthForSquare
+        );
+
+        // 人像头部安全约束（硬约束，优先级仅次于目标比例）：
+        // 仅向上平移，避免在 1:1 等紧凑比例下切掉头顶。
+        finalCrop = ensurePortraitHeadSafety(
+                finalCrop,
+                subjectBox,
+                mainSubject,
+                source.getWidth(),
+                source.getHeight()
         );
 
         if (saliencyProvider != null) {
@@ -217,6 +258,49 @@ public class SmartCropStrategy {
                 imageWidth,
                 imageHeight
         );
+    }
+
+    /**
+     * 人像头部安全位移：仅向上平移裁切框，避免人物头顶被截断。
+     *
+     * 触发原因：当人物贴近图像顶部时，{@code personPadding.top} 的扩边会被 {@code clamp}
+     * 砍掉，导致 expanded box 的 centerY 实际下移；进而 {@code adaptToAspectRatio} 围绕
+     * 这个下移的中心生成的 1:1 裁切框会把头顶切掉。同时 {@code adjustForSubjectCentering}
+     * 的可见率回退机制会在下身被切时拒绝向上的修正，反而保留切头版本。
+     *
+     * 处理规则：
+     * - 仅对人物主体生效；
+     * - 仅改变 y，不改变宽高与比例（不与目标比例约束冲突）；
+     * - 仅向上平移，永不下移；
+     * - 即便源图空间不足，至少把 crop 顶部压到 y=0，最大限度保住头顶；
+     * - 宁可裁掉下半身/脚部，也不切头（符合人像构图惯例）。
+     */
+    private BoundingBox ensurePortraitHeadSafety(
+            BoundingBox crop,
+            BoundingBox subject,
+            DetectionResult mainSubject,
+            int imageWidth,
+            int imageHeight
+    ) {
+        if (crop == null
+                || subject == null
+                || mainSubject == null
+                || !mainSubject.isPerson()) {
+            return crop;
+        }
+        double headroom = crop.height() * PERSON_TOP_HEADROOM_RATIO;
+        double desiredTop = Math.max(0.0, subject.y() - headroom);
+        double maxTop = Math.max(0.0, imageHeight - crop.height());
+        desiredTop = Math.min(desiredTop, maxTop);
+        if (crop.y() <= desiredTop + 1e-6) {
+            return crop;
+        }
+        return new BoundingBox(
+                crop.x(),
+                desiredTop,
+                crop.width(),
+                crop.height()
+        ).clamp(imageWidth, imageHeight);
     }
 
     private boolean shouldKeepSourceWidthForSquare(double ratio, int imageWidth, int imageHeight) {
@@ -698,11 +782,57 @@ public class SmartCropStrategy {
                 cropH
         ).clamp(imageWidth, imageHeight);
 
-        if (!containsEnough(centered, subject)) {
+        if (containsEnough(centered, subject)) {
+            return centered;
+        }
+
+        // For person subjects, cutting feet is strictly preferable to cutting the head/face.
+        // If the centered version puts the crop's top edge above the original crop's top edge,
+        // it preserves the head better — accept it even when the area-based visibility check fails.
+        if (isPersonSubject && centered.y() + 1e-3 < crop.y()) {
+            return centered;
+        }
+
+        return crop;
+    }
+
+    /**
+     * 人像最终保护：保证 crop 顶边不低于 subjectBox 头顶（含安全余量）。
+     *
+     * <p>YOLO person bbox 经常截掉发顶几像素，加上扩边在画面顶部被 clamp 后会
+     * 把 {@link #adaptToAspectRatio} 的中心 Y 拉低，造成头顶被裁。本方法只做纵向
+     * 平移，不改变 crop 的宽高，因此不会破坏目标比例约束。</p>
+     */
+    private BoundingBox protectHeadForPerson(
+            BoundingBox crop,
+            BoundingBox subject,
+            boolean isPersonSubject,
+            int imageWidth,
+            int imageHeight
+    ) {
+        if (!isPersonSubject || subject == null) {
             return crop;
         }
 
-        return centered;
+        double headMargin = Math.min(
+                subject.height() * PERSON_HEAD_SAFETY_MARGIN_RATIO,
+                crop.height() * PERSON_HEAD_SAFETY_MARGIN_MAX_OF_CROP
+        );
+        double desiredTop = Math.max(0.0, subject.y() - headMargin);
+
+        if (crop.y() <= desiredTop + 1e-3) {
+            return crop;
+        }
+
+        double maxY = Math.max(0.0, imageHeight - crop.height());
+        double newY = Math.min(desiredTop, maxY);
+
+        return new BoundingBox(
+                crop.x(),
+                newY,
+                crop.width(),
+                crop.height()
+        ).clamp(imageWidth, imageHeight);
     }
 
     private Rectangle clampRect(

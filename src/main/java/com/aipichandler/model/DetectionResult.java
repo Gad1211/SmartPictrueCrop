@@ -31,6 +31,11 @@ public class DetectionResult {
     }
 
     public boolean isPerson() {
-        return "person".equalsIgnoreCase(className);
+        if (className == null) {
+            return false;
+        }
+        String lower = className.toLowerCase(java.util.Locale.ROOT);
+        // Accept the merged-group alias produced by SmartCropStrategy#mergeCloseSubjects.
+        return lower.equals("person") || lower.equals("person_group");
     }
 }
